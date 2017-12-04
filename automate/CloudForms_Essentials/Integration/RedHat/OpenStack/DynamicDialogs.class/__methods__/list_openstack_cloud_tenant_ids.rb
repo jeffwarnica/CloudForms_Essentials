@@ -3,10 +3,9 @@
 
   Author: Kevin Morey <kmorey@redhat.com>
 
-  Description: List Cloud Tenant ids by provider
-
+  Description: List OpenStack Cloud Tenant ids
 -------------------------------------------------------------------------------
-   Copyright 2016 Kevin Morey <kmorey@redhat.com>
+   Copyright 2017 Kevin Morey <kevin@redhat.com>
 
    Licensed under the Apache License, Version 2.0 (the "License");
    you may not use this file except in compliance with the License.
@@ -27,23 +26,15 @@ def log(level, msg, update_message = false)
 end
 
 def get_provider(provider_id=nil)
-  # if we get pass the provider_id when calling the method...
-  if provider_id
-    provider = $evm.vmdb(:ManageIQ_Providers_Openstack_CloudManager).find_by_id(provider_id)
-  else
-    # otherwise, pull the provider_id from the dialog options
-    $evm.root.attributes.detect { |k,v| provider_id = v if k.end_with?('provider_id') } rescue nil
-    provider = $evm.vmdb(:ManageIQ_Providers_Openstack_CloudManager).find_by_id(provider_id)
-  end
+  $evm.root.attributes.detect { |k,v| provider_id = v if k.end_with?('provider_id') } rescue nil
+  provider = $evm.vmdb(:ManageIQ_Providers_Openstack_CloudManager).find_by_id(provider_id)
+  log(:info, "Found provider: #{provider.name} via provider_id: #{provider.id}") if provider
 
-  if provider
-    log(:info, "Found provider: #{provider.name} via provider_id: #{provider.id}")
-  else
-    # if all else fails, grab the first provider of this type
+  unless provider
     provider = $evm.vmdb(:ManageIQ_Providers_Openstack_CloudManager).first
-    log(:info, "Found provider: #{provider.name} via default method")
+    log(:info, "Found provider: #{provider.name} via default method") if provider
   end
-  provider ? (return provider) : (return nil)
+  provider ? (return provider) : bail_out('< No providers found, check RBAC tags >')
 end
 
 def get_provider_from_template(template_guid=nil)
@@ -57,7 +48,7 @@ end
 
 def query_catalogitem(option_key, option_value=nil)
   # use this method to query a catalogitem
-  # note that this only works for items not bundles since we do not know which item within a bundle(s) to query from
+  # note that this only works for items not bundles since we do not know which item within a bundle to query from
   service_template = $evm.root['service_template']
   unless service_template.nil?
     begin
@@ -82,58 +73,70 @@ def query_catalogitem(option_key, option_value=nil)
   option_value ? (return option_value) : (return nil)
 end
 
-def get_user
-  user_search = $evm.root.attributes.detect { |k,v| k.end_with?('user_id') } ||
-    $evm.root.attributes.detect { |k,v| k.end_with?('_userid') }
-  user = $evm.vmdb(:user).find_by_id(user_search) || $evm.vmdb(:user).find_by_userid(user_search) ||
-    $evm.root['user']
-  log(:info, "Found user: #{user.userid}")
-  user
+def get_tenant(tenant_id=nil)
+  # if we get pass the provider_id when calling the method...
+  if tenant_id
+    tenant = $evm.vmdb(:ManageIQ_Providers_Openstack_CloudManager_CloudTenant).find_by_id(tenant_id)
+    log(:info, "Found tenant: #{tenant.name} via catalogitem: #{tenant.id}") if tenant
+  else
+    # otherwise, pull the tenant_id from the dialog options
+    $evm.root.attributes.detect { |k,v| tenant_id = v if k.end_with?('tenant_id') } rescue nil
+    tenant = $evm.vmdb(:ManageIQ_Providers_Openstack_CloudManager_CloudTenant).find_by_id(tenant_id)
+    log(:info, "Found tenant: #{tenant.name} via tenant_id: #{tenant.id}") if tenant
+  end
+  tenant ? (return tenant) : (return nil)
 end
 
-def get_current_group_rbac_array
-  rbac_array = []
-  unless @user.current_group.filters.blank?
-    # this will come back as an array of arrays, so we need to flatten it
-    # flatten will turn it into an array of hashes
-    @user.current_group.filters['managed'].flatten.each do |filter|
-      next unless /(?<category>\w*)\/(?<tag>\w*)$/i =~ filter
-      rbac_array << {category=>tag}
-    end
-  end
-  log(:info, "userid: #{@user.userid} rbac_array: #{rbac_array}")
-  rbac_array
+def bail_out(message)
+  dialog_hash = {}
+  dialog_hash[''] = message
+  $evm.object['required'] = false
+  set_values_and_exit(dialog_hash)
+  exit MIQ_WARN
 end
 
-def object_eligible?(obj)
-  # loops through each of the hashes in the rbac_array and compares to the object's tags
-  @rbac_array.each do |rbac_hash|
-    rbac_hash.each do |rbac_category, rbac_tags|
-      Array.wrap(rbac_tags).each {|rbac_tag_entry| return false unless obj.tagged_with?(rbac_category, rbac_tag_entry) }
-    end
-    true
+def set_values_and_exit(dialog_hash)
+  $evm.object["values"] = dialog_hash
+  log(:info, "$evm.object['values']: #{$evm.object['values'].inspect}")
+  $evm.object['default_value'] = dialog_hash.first[0]
+end
+
+def check_rbac
+  rbac = $evm.object['enable_rbac'] || false
+  if rbac
+    $evm.enable_rbac
+  else
+    $evm.disable_rbac
   end
+  log(:info, "$evm.rbac_enabled?: #{$evm.rbac_enabled?}")
 end
 
 $evm.root.attributes.sort.each { |k, v| log(:info, "\t Attribute: #{k} = #{v}")}
 
-@user = get_user
-@rbac_array = get_current_group_rbac_array
-@provider = get_provider(query_catalogitem(:src_ems_id)) || get_provider_from_template()
+# check service model for rbac control
+check_rbac
 
 dialog_hash = {}
+provider = get_provider(query_catalogitem(:src_ems_id)) || get_provider_from_template()
 
-@provider.cloud_tenants.each do |ct|
-  log(:info, "Looking at tenant: #{ct.name} tags: #{ct.tags}")
-  next unless object_eligible?(ct) && ct.enabled
-  dialog_hash[ct.id] = "#{ct.name} on #{@provider.name}"
+if provider
+  tenant = get_tenant(query_catalogitem(:cloud_tenant))
+  provider.cloud_tenants.each do |cloud_tenant|
+    if tenant && tenant.id == cloud_tenant.id
+      dialog_hash[cloud_tenant.id] = "(Current) #{cloud_tenant.name} on #{provider.name}"
+    else
+      dialog_hash[cloud_tenant.id] = "#{cloud_tenant.name} on #{provider.name}"
+    end
+  end
+else
+  # no provider so list everything
+  $evm.vmdb(:ManageIQ_Providers_Openstack_CloudManager_CloudTenant).all.each do |cloud_tenant|
+    dialog_hash[cloud_tenant.id] = "#{cloud_tenant.name} on #{cloud_tenant.ext_management_system.name}"
+  end
 end
 
 if dialog_hash.blank?
-  dialog_hash[''] = "< no tenants found >"
+  bail_out("< No cloud tenants found, check RBAC tags >")
 else
-  $evm.object['default_value'] = dialog_hash.first[0]
+  set_values_and_exit(dialog_hash)
 end
-
-$evm.object['values'] = dialog_hash
-log(:info, "$evm.object['values']: #{$evm.object['values'].inspect}")

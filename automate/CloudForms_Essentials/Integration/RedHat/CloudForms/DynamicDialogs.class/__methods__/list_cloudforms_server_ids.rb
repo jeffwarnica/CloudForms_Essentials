@@ -5,7 +5,7 @@
 
  Description: This method lists CloudForms server ids 
 -------------------------------------------------------------------------------
-   Copyright 2016 Kevin Morey <kevin@redhat.com>
+   Copyright 2017 Kevin Morey <kevin@redhat.com>
 
    Licensed under the Apache License, Version 2.0 (the "License");
    you may not use this file except in compliance with the License.
@@ -20,17 +20,21 @@
    limitations under the License.
 -------------------------------------------------------------------------------
 =end
+def log(level, msg, update_message = false)
+  $evm.log(level, "#{msg}")
+  @task.message = msg if @task && (update_message || level == 'error')
+end
+
+def set_values_and_exit(dialog_hash)
+  $evm.object["values"] = dialog_hash
+  log(:info, "$evm.object['values']: #{$evm.object['values'].inspect}")
+  $evm.object['default_value'] = dialog_hash.first[0]
+end
 
 dialog_hash = {}
 
-miq_servers = $evm.vmdb(:miq_server).all
-
-miq_servers.each do |s|
-  dialog_hash[s.id] = "server: #{s.name} id: #{s.id}"
+$evm.vmdb(:miq_server).all.each do |server|
+  dialog_hash[server.id] = "server: #{server.name} id: #{server.id}"
 end
 
-choose = {''=>'< choose a miq_server id >'}
-dialog_hash = choose.merge!(dialog_hash)
-
-$evm.object["values"]     = dialog_hash
-$evm.log(:info, "$evm.object['values']: #{$evm.object['values'].inspect}")
+set_values_and_exit(dialog_hash)

@@ -4,13 +4,14 @@
 #
 #   Author: Kevin Morey <kevin@redhat.com>
 #
-#   Description: This bash script initializes some useful aliases that assist CloudForms
-#                administrators logged into the appliance
+#   Description: This bash script initializes some useful aliases that assist 
+#                CloudForms administrators
 #
-#   Installation: Place this file in root's home direcotry and then source this file.
+#   Installation: Place this file in root's home direcotry and then source this 
+#                 file. e.g. # source ~/cloudforms_essentialsrc
 #
 #   -------------------------------------------------------------------------------
-#    Copyright 2016 Kevin Morey <kevin@redhat.com>
+#    Copyright 2017 Kevin Morey <kevin@redhat.com>
 #
 #    Licensed under the Apache License, Version 2.0 (the "License");
 #    you may not use this file except in compliance with the License.
@@ -27,14 +28,13 @@
 
 # Directory settings
 VMDB_PATH='/var/www/miq/vmdb'
-alias log='cd $VMDB_PATH/log'
 
 # Logging aliases
-alias auto='less +F $VMDB_PATH/log/automation.log'
-alias evm='less +F $VMDB_PATH/log/evm.log'
-alias prod='less +F $VMDB_PATH/log/production.log'
-alias policy='less +F $VMDB_PATH/log/policy.log'
-alias pglog='less +F $APPLIANCE_PG_DATA/pg_log/postgresql.log'
+alias log='cd $VMDB_PATH/log'
+alias tailauto='less +F $VMDB_PATH/log/automation.log'
+alias tailevm='less +F $VMDB_PATH/log/evm.log'
+alias tailprod='less +F $VMDB_PATH/log/production.log'
+alias tailpolicy='less +F $VMDB_PATH/log/policy.log'
 
 # Clean logging aliases
 alias clean_evm="echo Cleaned: `date` > $VMDB_PATH/log/evm.log"
@@ -45,15 +45,12 @@ alias clean="clean_evm;clean_auto;clean_prod"
 # Rails Console
 alias railsc="vmdb;echo '\$evm = MiqAeMethodService::MiqAeService.new(MiqAeEngine::MiqAeWorkspaceRuntime.new)'; rails c"
 
-# kill provision job.
+# kill provision job
 function kill_prov {
   vmdb
-  script/rails r tools/kill_provision.rb $1
+  rails r tools/kill_provision.rb $1
   cd - > /dev/null 2>&1
 }
-
-# Application Status
-alias status='systemctl status evmserverd httpd|more; evmserver.sh status'
 
 # Ignore duplicate history commands
 export HISTCONTROL=ignoredups

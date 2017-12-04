@@ -8,7 +8,5 @@ object:
     inherits: 
     description: 
   fields:
-  - service_retire_extend_days:
-      value: '14'
   - method1:
       value: service_retire_extend

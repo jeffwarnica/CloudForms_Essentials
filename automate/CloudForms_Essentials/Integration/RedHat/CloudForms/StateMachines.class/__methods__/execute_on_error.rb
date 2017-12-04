@@ -1,9 +1,10 @@
 =begin
- execute_on_exit.rb
+ execute_on_error.rb
 
  Author: Kevin Morey <kevin@redhat.com>
 
- Description: This method is executed after each successful state in the StateMachine
+ Description: This method is executed if a state ends with ae_result = error in the StateMachine. 
+    It is in here that you can customize your own error handling
 -------------------------------------------------------------------------------
    Copyright 2016 Kevin Morey <kevin@redhat.com>
 
@@ -26,7 +27,6 @@ def log(level, msg, update_message = false)
 end
 
 begin
-
   $evm.root.attributes.sort.each { |k, v| log(:info, "$evm.root Attribute - #{k}: #{v}")}
 
   # Do something here

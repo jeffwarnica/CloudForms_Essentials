@@ -8,5 +8,5 @@ object:
     inherits: 
     description: 
   fields:
-  - execute:
+  - method1:
       value: list_openstack_securitygroup_ids

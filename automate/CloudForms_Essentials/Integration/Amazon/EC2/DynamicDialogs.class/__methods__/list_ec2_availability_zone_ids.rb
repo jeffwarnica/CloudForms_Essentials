@@ -5,7 +5,7 @@
 
  Description: This method list Amazon availability zone ids
 -------------------------------------------------------------------------------
-   Copyright 2016 Kevin Morey <kevin@redhat.com>
+   Copyright 2017 Kevin Morey <kevin@redhat.com>
 
    Licensed under the Apache License, Version 2.0 (the "License");
    you may not use this file except in compliance with the License.
@@ -30,19 +30,29 @@ def get_provider(provider_id=nil)
   provider = $evm.vmdb(:ManageIQ_Providers_Amazon_CloudManager).find_by_id(provider_id)
   log(:info, "Found provider: #{provider.name} via provider_id: #{provider.id}") if provider
 
-  # set to true to default to the fist amazon provider
-  use_default = false
-  unless provider
-    # default the provider to first openstack provider
-    provider = $evm.vmdb(:ManageIQ_Providers_Amazon_CloudManager).first if use_default
-    log(:info, "Found amazon: #{provider.name} via default method") if provider && use_default
+  if !provider
+    provider = $evm.vmdb(:ManageIQ_Providers_Amazon_CloudManager).first
+    if provider
+      log(:info, "Found provider: #{provider.name} via default method")
+    else
+      bail_out('< No providers found, check RBAC tags >')
+    end
   end
+  provider ? (return provider) : (return nil)
+end
+
+def get_provider_from_template(template_guid=nil)
+  $evm.root.attributes.detect { |k,v| template_guid = v if k.end_with?('_guid') } rescue nil
+  template = $evm.vmdb(:ManageIQ_Providers_Amazon_CloudManager_Template).find_by_guid(template_guid)
+  return nil unless template
+  provider = $evm.vmdb(:ManageIQ_Providers_Amazon_CloudManager).find_by_id(template.ems_id)
+  log(:info, "Found provider: #{provider.name} via template.ems_id: #{template.ems_id}") if provider
   provider ? (return provider) : (return nil)
 end
 
 def query_catalogitem(option_key, option_value=nil)
   # use this method to query a catalogitem
-  # note that this only works for items not bundles since we do not know which item within a bundle(s) to query from
+  # note that this only works for items not bundles since we do not know which item within a bundle to query from
   service_template = $evm.root['service_template']
   unless service_template.nil?
     begin
@@ -67,72 +77,54 @@ def query_catalogitem(option_key, option_value=nil)
   option_value ? (return option_value) : (return nil)
 end
 
-def get_provider_from_template(template_guid=nil)
-  $evm.root.attributes.detect { |k,v| template_guid = v if k.end_with?('_guid') } rescue nil
-  template = $evm.vmdb(:ManageIQ_Providers_Amazon_CloudManager_Template).find_by_guid(template_guid)
-  return nil unless template
-  provider = $evm.vmdb(:ManageIQ_Providers_Amazon_CloudManager).find_by_id(template.ems_id)
-  log(:info, "Found provider: #{provider.name} via template.ems_id: #{template.ems_id}") if provider
-  provider ? (return provider) : (return nil)
+def bail_out(message)
+  dialog_hash = {}
+  dialog_hash[''] = message
+  $evm.object['required'] = false
+  set_values_and_exit(dialog_hash)
+  exit MIQ_WARN
 end
 
-def get_user
-  user_search = $evm.root.attributes.detect { |k,v| k.end_with?('_evm_owner_id') } ||
-  $evm.root.attributes.detect { |k,v| k.end_with?('_userid') }
-  user = $evm.vmdb(:user).find_by_id(user_search) || $evm.vmdb(:user).find_by_userid(user_search) ||
-    $evm.root['user']
-  user
+def set_values_and_exit(dialog_hash)
+  $evm.object["values"] = dialog_hash
+  log(:info, "$evm.object['values']: #{$evm.object['values'].inspect}")
+  $evm.object['default_value'] = dialog_hash.first[0]
 end
 
-def get_current_group_rbac_array
-  rbac_array = []
-  if !@user.current_group.filters.blank?
-    @user.current_group.filters['managed'].flatten.each do |filter|
-      next unless /(?<category>\w*)\/(?<tag>\w*)$/i =~ filter
-      rbac_array << {category=>tag}
-    end
+def check_rbac
+  rbac = $evm.object['enable_rbac'] || false
+  if rbac
+    $evm.enable_rbac
+  else
+    $evm.disable_rbac
   end
-  log(:info, "@user: #{@user.userid} RBAC filters: #{rbac_array}")
-  rbac_array
-end
-
-def object_eligible?(obj)
-  @rbac_array.each do |rbac_hash|
-    rbac_hash.each do |rbac_category, rbac_tags|
-      Array.wrap(rbac_tags).each {|rbac_tag_entry| return false if !obj.tagged_with?(rbac_category, rbac_tag_entry) }
-    end
-    true
-  end
+  log(:info, "$evm.rbac_enabled?: #{$evm.rbac_enabled?}")
 end
 
 $evm.root.attributes.sort.each { |k, v| log(:info, "\t Attribute: #{k} = #{v}")}
 
-@user = get_user
-@rbac_array = get_current_group_rbac_array
+# check service model for rbac control
+check_rbac
 
 dialog_hash = {}
 
-# see if provider is already set in root
 provider = get_provider(query_catalogitem(:src_ems_id)) || get_provider_from_template()
 
 if provider
   provider.availability_zones.each do |availability_zone|
-    next if !object_eligible?(availability_zone) || !availability_zone.ext_management_system
-    dialog_hash[availability_zone.id] = "#{availability_zone.name} on #{availability_zone.ext_management_system.name}"
+    next unless availability_zone.name
+    dialog_hash[availability_zone.id] = "#{availability_zone.name} on #{provider.name}"
   end
 else
   # no provider so list everything
   $evm.vmdb(:ManageIQ_Providers_Amazon_CloudManager_AvailabilityZone).all.each do |availability_zone|
-    next if !object_eligible?(availability_zone) || !availability_zone.ext_management_system
+    next unless availability_zone.ext_management_system
     dialog_hash[availability_zone.id] = "#{availability_zone.name} on #{availability_zone.ext_management_system.name}"
   end
 end
 
 if dialog_hash.blank?
-  dialog_hash[''] = "< no availability zones found >"
+  bail_out("< No availability zones found, check RBAC tags >")
 else
-  $evm.object['default_value'] = dialog_hash.first[0]
+  set_values_and_exit(dialog_hash)
 end
-
-$evm.object["values"]     = dialog_hash
-log(:info, "$evm.object['values']: #{$evm.object['values'].inspect}")

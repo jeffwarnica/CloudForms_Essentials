@@ -1,0 +1,12 @@
+---
+object_type: instance
+version: 1.0
+object:
+  attributes:
+    display_name: 
+    name: list_embedded_ansible_repository_ids
+    inherits: 
+    description: Lists repositories
+  fields:
+  - method2:
+      value: list_embedded_ansible_repository_ids

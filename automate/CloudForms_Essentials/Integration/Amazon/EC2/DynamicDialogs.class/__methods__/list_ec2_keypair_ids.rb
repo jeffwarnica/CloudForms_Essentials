@@ -5,7 +5,7 @@
 
  Description: This method lists Amazon key pair ids
 -------------------------------------------------------------------------------
-   Copyright 2016 Kevin Morey <kevin@redhat.com>
+   Copyright 2017 Kevin Morey <kevin@redhat.com>
 
    Licensed under the Apache License, Version 2.0 (the "License");
    you may not use this file except in compliance with the License.
@@ -32,7 +32,11 @@ def get_provider(provider_id=nil)
 
   if !provider
     provider = $evm.vmdb(:ManageIQ_Providers_Amazon_CloudManager).first
-    log(:info, "Found amazon: #{provider.name} via default method")
+    if provider
+      log(:info, "Found provider: #{provider.name} via default method")
+    else
+      bail_out('< No providers found, check RBAC tags >')
+    end
   end
   provider ? (return provider) : (return nil)
 end
@@ -48,7 +52,7 @@ end
 
 def query_catalogitem(option_key, option_value=nil)
   # use this method to query a catalogitem
-  # note that this only works for items not bundles since we do not know which item within a bundle(s) to query from
+  # note that this only works for items not bundles since we do not know which item within a bundle to query from
   service_template = $evm.root['service_template']
   unless service_template.nil?
     begin
@@ -73,33 +77,54 @@ def query_catalogitem(option_key, option_value=nil)
   option_value ? (return option_value) : (return nil)
 end
 
+def bail_out(message)
+  dialog_hash = {}
+  dialog_hash[''] = message
+  $evm.object['required'] = false
+  set_values_and_exit(dialog_hash)
+  exit MIQ_WARN
+end
+
+def set_values_and_exit(dialog_hash)
+  $evm.object["values"] = dialog_hash
+  log(:info, "$evm.object['values']: #{$evm.object['values'].inspect}")
+  $evm.object['default_value'] = dialog_hash.first[0]
+end
+
+def check_rbac
+  rbac = $evm.object['enable_rbac'] || false
+  if rbac
+    $evm.enable_rbac
+  else
+    $evm.disable_rbac
+  end
+  log(:info, "$evm.rbac_enabled?: #{$evm.rbac_enabled?}")
+end
+
 $evm.root.attributes.sort.each { |k, v| log(:info, "\t Attribute: #{k} = #{v}")}
 
-dialog_hash = {}
+# check service model for rbac control
+check_rbac
 
-# see if provider is already set in root
+dialog_hash = {}
 provider = get_provider(query_catalogitem(:src_ems_id)) || get_provider_from_template()
 
 if provider
   provider.key_pairs.each do |key_pair|
-    next if key_pair.name.nil?
+    next unless key_pair.name
     dialog_hash[key_pair.id] = "#{key_pair.name} on #{provider.name}"
   end
 else
   # no provider so list everything
   $evm.vmdb(:ManageIQ_Providers_Amazon_CloudManager_AuthKeyPair).all.each do |key_pair|
     provider = $evm.vmdb(:ManageIQ_Providers_Amazon_CloudManager).find_by_id(key_pair.resource_id)
-    next if key_pair.name.nil?
+    next unless key_pair.name
     dialog_hash[key_pair.id] = "#{key_pair.name} on #{provider.name}"
   end
 end
 
 if dialog_hash.blank?
-  dialog_hash[''] = "< no key pairs found >"
-  $evm.object['required'] = false
+  bail_out("< No key pairs found, check RBAC tags >")
 else
-  $evm.object['default_value'] = dialog_hash.first[0]
+  set_values_and_exit(dialog_hash)
 end
-
-$evm.object['values'] = dialog_hash
-log(:info, "$evm.object['values']: #{$evm.object['values'].inspect}")
