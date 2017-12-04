@@ -195,14 +195,16 @@
         required_method_options: {}
         default_value: small
         values:
-        - - 01_small
-          - Small - 1 vCPU x 2 GB RAM
-        - - 02_medium
-          - Medium - 2 vCPU x 4 GB RAM
-        - - 03_large
-          - Large - 4 vCPU x 8 GB RAM
-        - - 04_xlarge
-          - xLarge - 8 vCPU x 16 GB RAM
+        - - t2.micro
+          - t2.micro - 1x1
+        - - t2.nano
+          - t2.nano - 1x512MB
+        - - t2.small
+          - t2.small - 1x2
+        - - t2.medium 
+          - t2.medium - 2x4
+        - - t2.large
+          - t2.large - 4x16
         values_method: 
         values_method_options: {}
         options:
@@ -254,90 +256,6 @@
           :sort_order: :ascending
         label: Additional Disk
         position: 3
-        validator_type: 
-        validator_rule: 
-        reconfigurable: 
-        dynamic: 
-        show_refresh_button: 
-        load_values_on_init: 
-        read_only: 
-        auto_refresh: 
-        trigger_auto_refresh: 
-        resource_action:
-          action: 
-          resource_type: DialogField
-          ae_namespace: 
-          ae_class: 
-          ae_instance: 
-          ae_message: 
-          ae_attributes: {}
-      - name: tag_1_flex_monitor
-        description: 
-        type: DialogFieldRadioButton
-        data_type: string
-        notes: 
-        notes_display: 
-        display: edit
-        display_method: 
-        display_method_options: {}
-        required: true
-        required_method: 
-        required_method_options: {}
-        default_value: 'false'
-        values:
-        - - 'false'
-          - 'False'
-        - - 'true'
-          - 'True'
-        values_method: 
-        values_method_options: {}
-        options:
-          :sort_by: :description
-          :sort_order: :ascending
-        label: Flex Monitor
-        position: 4
-        validator_type: 
-        validator_rule: 
-        reconfigurable: 
-        dynamic: 
-        show_refresh_button: 
-        load_values_on_init: 
-        read_only: 
-        auto_refresh: 
-        trigger_auto_refresh: 
-        resource_action:
-          action: 
-          resource_type: DialogField
-          ae_namespace: 
-          ae_class: 
-          ae_instance: 
-          ae_message: 
-          ae_attributes: {}
-      - name: tag_1_flex_maximum
-        description: 
-        type: DialogFieldRadioButton
-        data_type: string
-        notes: 
-        notes_display: 
-        display: edit
-        display_method: 
-        display_method_options: {}
-        required: true
-        required_method: 
-        required_method_options: {}
-        default_value: '1'
-        values:
-        - - '1'
-          - '1'
-        - - '2'
-          - '2'
-        values_method: 
-        values_method_options: {}
-        options:
-          :sort_by: :description
-          :sort_order: :ascending
-        label: Flex Maximum
-        position: 5
         validator_type: 
         validator_rule: 
         reconfigurable: 

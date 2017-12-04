@@ -170,7 +170,10 @@ begin
 
   def get_vm_name(build, merged_options_hash, merged_tags_hash)
     log(:info, "Processing get_vm_name", true)
-    new_vm_name = merged_options_hash[:vm_name] || merged_options_hash[:vm_target_name]
+    new_vm_name = (merged_options_hash[:vm_name] || merged_options_hash[:vm_target_name])
+
+    new_vm_name = @service.name if new_vm_name.blank?
+
     proposed_vm_name = nil
     if new_vm_name.include?('*')
       log(:info, "Processing VM name prepended by *")
@@ -217,12 +220,59 @@ begin
     log(:info, "Processing get_network...Complete", true)
   end
 
+  def map_cloud_flavors(flavor)
+    flavor_name = flavor.name
+    if flavor.cpu_cores.to_i.zero?
+      number_of_sockets = 1
+    else
+      number_of_sockets = flavor.cpu_cores.to_i
+    end
+    cores_per_socket = flavor.cpus
+    vm_memory = flavor.memory / 1024**2
+    log(:info, "map_cloud_flavors: #{flavor_name}, #{number_of_sockets}, #{cores_per_socket}, #{vm_memory}")
+    return flavor_name, number_of_sockets, cores_per_socket, vm_memory
+  end
+
   def get_flavor(build, merged_options_hash, merged_tags_hash)
     log(:info, "Processing get_flavor...", true)
-    merged_options_hash[:number_of_sockets] = 1
-    # Rest from dialog.
-    #merged_options_hash[:cores_per_socket]  = cores_per_socket
-    #merged_options_hash[:vm_memory]         = vm_memory
+    flavor_search_criteria = merged_options_hash[:flavor] || merged_options_hash[:instance_type]
+    return if flavor_search_criteria.blank?
+    provider = @template.ext_management_system
+    log(:info, "flavor_search_criteria: #{flavor_search_criteria}")
+    log(:info, "template.vendor.downcase: [#{@template.vendor.downcase}]")
+
+    case @template.vendor.downcase
+      when 'openstack', 'amazon';
+        cloud_flavor = provider.flavors.detect {|fl| fl.id == flavor_search_criteria.to_i } ||
+            provider.flavors.detect { |fl|  fl.name.downcase.match(flavor_search_criteria) }
+        log(:info, "cloud_flavor: #{cloud_flavor}") if cloud_flavor
+      else
+        # Manually map compute flavors for VMware, RHEV and SCVMM
+        case flavor_search_criteria.gsub(/^\d*_/, '').match(/\w*$/)[0]
+          when 'xsmall';  flavor_name, number_of_sockets, cores_per_socket, vm_memory = 'xsmall', 1, 1, 1024
+          when 'small';   flavor_name, number_of_sockets, cores_per_socket, vm_memory = 'small', 1, 1, 2048
+          when 'medium';  flavor_name, number_of_sockets, cores_per_socket, vm_memory = 'medium', 1, 2, 4096
+          when 'large';   flavor_name, number_of_sockets, cores_per_socket, vm_memory = 'large', 1, 4, 8192
+          when 'xlarge';  flavor_name, number_of_sockets, cores_per_socket, vm_memory = 'xlarge', 1, 8, 16384
+          else
+            # default to small
+            flavor_name, number_of_sockets, cores_per_socket, vm_memory = 'small', 1, 1, 2048
+        end
+    end
+    if cloud_flavor
+      flavor_name, number_of_sockets, cores_per_socket, vm_memory = map_cloud_flavors(cloud_flavor)
+      merged_options_hash[:instance_type] = cloud_flavor.id
+    end
+    if flavor_name
+      merged_tags_hash[:flavor]               = flavor_name
+      merged_options_hash[:number_of_sockets] = number_of_sockets
+      merged_options_hash[:cores_per_socket]  = cores_per_socket
+      merged_options_hash[:vm_memory]         = vm_memory
+      log(:info, "Build: #{build} flavor: #{flavor_name} number_of_sockets: #{number_of_sockets} " \
+        "cores_per_socket: #{cores_per_socket} vm_memory: #{vm_memory}")
+    else
+      log(:info, "'flavor_name' still blank. This is going to fail.")
+    end
     log(:info, "Processing get_flavor...Complete", true)
   end
 
@@ -264,7 +314,7 @@ begin
       if merged_options_hash[:retirement] == '0'
         merged_options_hash[:retirement] = nil
       else
-        merged_options_hash[:retirement] = merged_options_hash[:retirement].days
+        merged_options_hash[:retirement] = merged_options_hash[:retirement].days rescue nil
       end
 
       # get extra options ( use this section to override any options/tags that you want)
