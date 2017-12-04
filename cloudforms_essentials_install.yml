@@ -63,7 +63,7 @@
       chdir: "{{ cfme_base_dir }}"
 
   - name: Import catalogs
-    shell: "miqimport service_catalogs serice_catalogs/"
+    shell: "miqimport service_catalogs service_catalogs/"
     args:
       chdir: "{{ cfme_base_dir }}"
 
