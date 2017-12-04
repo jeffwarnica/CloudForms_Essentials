@@ -1,0 +1,35 @@
+---
+- RHC Samples:
+    name: RHC Samples
+    description: 
+    template:
+    - name: RHC Sample From Template
+      description: ''
+      type: 
+      display: true
+      service_type: atomic
+      prov_type: generic
+      provision_cost: 
+      long_description: ''
+      options: {}
+      service_template_catalog_name: RHC Samples
+      resource_actions:
+      - action: Retirement
+        ae_namespace: Service/Retirement/StateMachines
+        ae_class: ServiceRetirement
+        ae_instance: Default
+        ae_message: 
+        ae_attributes:
+          :service_action: Retirement
+        dialog_label: generic_build_vmprovision_request_based_on_choosing_a_template
+      - action: Provision
+        ae_namespace: Service/Provisioning/StateMachines
+        ae_class: ServiceProvision_Template
+        ae_instance: build_vm_provision_request
+        ae_message: 
+        ae_attributes:
+          :service_action: Provision
+        dialog_label: generic_build_vmprovision_request_based_on_choosing_a_template
+      custom_buttons: []
+      custom_button_sets: []
+
