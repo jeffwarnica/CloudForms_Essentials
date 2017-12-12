@@ -1,36 +1,38 @@
-=begin
- add_vm_to_service.rb
+# =begin
+#  add_vm_to_service.rb
+#
+#  Author: Kevin Morey <kevin@redhat.com>
+#
+#  Description: This method performs the following
+#     a) add the provisioned vm to a service after Post Provisioning
+#     b) sets vm group ownership
+#     c) tags the vm with all rbac_array tags since we do do this by default
+#     d) tags vms or services with flex attributes
+# ------------------------------------------------------------------------------
+#
+#     Copyright 2016 Kevin Morey <kevin@redhat.com>
+#
+#    Licensed under the Apache License, Version 2.0 (the "License");
+#    you may not use this file except in compliance with the License.
+#    You may obtain a copy of the License at
+#
+#        http://www.apache.org/licenses/LICENSE-2.0
+#
+#    Unless required by applicable law or agreed to in writing, software
+#    distributed under the License is distributed on an "AS IS" BASIS,
+#    WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+#    See the License for the specific language governing permissions and
+#    limitations under the License.
+# ------------------------------------------------------------------------------
+# =end
 
- Author: Kevin Morey <kevin@redhat.com>
-
- Description: This method performs the following 
-    a) add the provisioned vm to a service after Post Provisioning
-    b) sets vm group ownership
-    c) tags the vm with all rbac_array tags since we do do this by default
-    d) tags vms or services with flex attributes
--------------------------------------------------------------------------------
-   Copyright 2016 Kevin Morey <kevin@redhat.com>
-
-   Licensed under the Apache License, Version 2.0 (the "License");
-   you may not use this file except in compliance with the License.
-   You may obtain a copy of the License at
-
-       http://www.apache.org/licenses/LICENSE-2.0
-
-   Unless required by applicable law or agreed to in writing, software
-   distributed under the License is distributed on an "AS IS" BASIS,
-   WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-   See the License for the specific language governing permissions and
-   limitations under the License.
--------------------------------------------------------------------------------
-=end
 def log(level, msg, update_message = false)
-  $evm.log(level, "#{msg}")
+  $evm.log(level, msg.to_s)
   @task.message = msg if @task && (update_message || level == 'error')
 end
 
 # basic retry logic
-def retry_method(retry_time, msg='INFO')
+def retry_method(retry_time, msg = 'INFO')
   log(:info, "#{msg} - Waiting #{retry_time} seconds}", true)
   $evm.root['ae_result'] = 'retry'
   $evm.root['ae_retry_interval'] = retry_time
@@ -54,12 +56,6 @@ def process_tags(category, single_value, tag)
   end
 end
 
-def get_service(ws_values)
-  log(:info, "Processing get_service...", true)
-  service = $evm.vmdb('service').find_by_id(ws_values[:service_id])
-  log(:info, "Processing get_service...Complete", true)
-  return service
-end
 
 def add_vm_to_service(vm, ws_values)
   log(:info, "Processing add_vm_to_service...", true)
@@ -114,8 +110,10 @@ begin
   $evm.root.attributes.sort.each { |k, v| log(:info, "\t Attribute: #{k} = #{v}")}
 
   # Get miq_provision from root
-  @task = $evm.root['miq_provision']
-  log(:info, "Provision:<#{@task.id}> Request:<#{@task.miq_provision_request.id}> Type:<#{@task.type}>")
+  @task = $evm.root['service_template_provision_task']
+  @service = @task.destination
+
+  log(:info, "Provision:<#{@task.id}> Service:<#{@service.name}>")
 
   vm = @task.vm
   retry_method(15.seconds, "Waiting for VM: #{@task.get_option(:vm_target_name)}") if vm.nil?
