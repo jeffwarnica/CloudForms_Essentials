@@ -1,0 +1,18 @@
+---
+- name: dump all
+  hosts: all
+
+  vars:
+  - manageiq_connection:
+      url: {{ manageiq_connection.url }}
+      validate_certs: false
+      token: {{ manageiq_connection.token }}
+ 
+  tasks:
+  - name: Get a vmdb object
+    manageiq_vmdb:
+      href: {{ manageiq.request_task }}
+    register: vmdb_object
+  - name: get variables
+    debug: var=hostvars[inventory_hostname]
+
