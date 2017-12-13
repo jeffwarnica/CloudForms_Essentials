@@ -26,7 +26,8 @@
         Content-Type: "application/json" 
       status_code: 200 
     register: workspace
-  - debug: var=workspace
+  - name: dump workspace
+    debug: var=workspace
 
   - name: Fetch the task
     uri:
@@ -39,7 +40,19 @@
       status_code: 200
     register: request_task
 
-  - debug: var=request_task
+  - name: dump request_task
+    debug: var=request_task
+
+  - name: Sanityify deep variables
+    set_fact:
+      dialog: request_task.options.dialog
+      root: workspace.json.input.root
+
+  - name: dump dialog values
+    debug: var=dialog
+
+  - name: dump root values
+    debug: var=root
 
 #  - name: Get a vmdb object
 #    manageiq_vmdb:
@@ -48,4 +61,4 @@
 
   - name: get variables
     debug: var=hostvars[inventory_hostname]
-
+#
