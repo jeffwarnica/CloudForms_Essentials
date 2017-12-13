@@ -75,7 +75,7 @@
     register: output
 
   - name: dump update results
-    debug: var:output
+    debug: var=output
 
 #  - name: Get a vmdb object
 #    manageiq_vmdb:
