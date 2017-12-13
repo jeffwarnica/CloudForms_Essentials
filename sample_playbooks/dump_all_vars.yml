@@ -26,8 +26,20 @@
         Content-Type: "application/json" 
       status_code: 200 
     register: workspace
-
   - debug: var=workspace
+
+  - name: Fetch the task
+    uri:
+      "{{ manageiq.api_url }}/api/{{ request_task }}"
+    method: GET
+      validate_certs: False
+      headers:
+        X-Auth-Token: "{{ manageiq.api_token }}"
+        Content-Type: "application/json"
+      status_code: 200
+    register: request_task
+
+  - debug: var=request_task
 
 #  - name: Get a vmdb object
 #    manageiq_vmdb:
