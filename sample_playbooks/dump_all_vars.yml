@@ -30,8 +30,8 @@
 
   - name: Fetch the task
     uri:
-      "{{ manageiq.api_url }}/api/{{ request_task }}"
-    method: GET
+      url: "{{ manageiq.api_url }}/api/{{ request_task }}"
+      method: GET
       validate_certs: False
       headers:
         X-Auth-Token: "{{ manageiq.api_token }}"
