@@ -46,7 +46,7 @@
   - name: Sanityify deep variables
     set_fact:
       dialog: "{{ request_task.options.dialog }}"
-      root: "{{ workspace.json.input.root }}"
+      root: "{{ workspace.json.input.objects.root }}"
 
   - name: dump dialog values
     debug: var=dialog
