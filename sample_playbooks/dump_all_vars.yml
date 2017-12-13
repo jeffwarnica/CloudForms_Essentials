@@ -54,6 +54,26 @@
   - name: dump root values
     debug: var=root
 
+  - name: set some vars
+    set_fact:
+      root_attrs: { 'name': 'Fred Flintstone', 'address': 'Bedrock' }
+      state_attrs: { 'name': 'Wilma Flintstone', 'friend': 'Betty Rubble' }
+
+  - name: Update the root object in the workspace
+    uri:
+      url: "{{ aws_url }}"
+      method: POST
+      body:
+        action: edit
+        resource: "{ 'objects': { 'root': {{ root_attrs }} }, 'state_vars': {{ state_attrs }}}"
+      body_format: json
+      validate_certs: False
+      headers:
+        X-Auth-Token: "{{ manageiq.api_token }}"
+        Content-Type: "application/json" 
+      status_code: 200
+    register: output
+
 #  - name: Get a vmdb object
 #    manageiq_vmdb:
 #      href: "{{ manageiq.request_task }}"
