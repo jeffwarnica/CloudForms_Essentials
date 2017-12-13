@@ -48,8 +48,8 @@
       options: "{{ request_task.json.options }}"
       root: "{{ workspace.json.input.objects.root }}"
 
-  - name: dump dialog values
-    debug: var=dialog
+  - name: dump option values
+    debug: var=options
 
   - name: dump root values
     debug: var=root
