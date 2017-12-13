@@ -59,6 +59,6 @@
 #      href: "{{ manageiq.request_task }}"
 #    register: vmdb_object
 
-  - name: get variables
-    debug: var=hostvars[inventory_hostname]
+#  - name: get variables
+#    debug: var=hostvars[inventory_hostname]
 #
