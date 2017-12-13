@@ -56,7 +56,7 @@
 
   - name: set some vars
     set_fact:
-      root_attrs: { 'name': 'Fred Flintstone', 'address': 'Bedrock' }
+      root_attrs: { 'name': 'Fred Flintstone', 'address': 'Bedrock', 'jw_ansible_stuff': {'status': 'ok', 'message': 'Doctor, it hurts when I do this'} }
       state_attrs: { 'name': 'Wilma Flintstone', 'friend': 'Betty Rubble' }
 
   - name: Update the root object in the workspace
@@ -73,6 +73,9 @@
         Content-Type: "application/json" 
       status_code: 200
     register: output
+
+  - name: dump update results
+    debug: var:output
 
 #  - name: Get a vmdb object
 #    manageiq_vmdb:
